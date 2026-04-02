@@ -65,6 +65,7 @@
             <button data-tab="record" class="active-tab">記録入力</button>
             <button data-tab="history">利用者別履歴</button>
             <button data-tab="week">週次30分表</button>
+            <button data-tab="clients">利用者情報</button>
           </div>
 
           <div id="tab-record" class="tabpanel active">
@@ -83,7 +84,10 @@
                   </div>
                   <div>
                     <label for="clientName">利用者名 / イニシャル</label>
-                    <input id="clientName" type="text" placeholder="例：A児 / K.Y" />
+                    <select id="clientName">
+                      <option value="">利用者を選択</option>
+                    </select>
+                    <div class="small">「利用者情報」タブで登録した利用者から選択します。</div>
                   </div>
                   <div>
                     <label for="staffName">記録者</label>
@@ -354,8 +358,53 @@
             </div>
             <div class="footer-note">週次表は、詳細な1件記録とは別に「いつ起こりやすいか」を俯瞰する観察シートとして使う想定です。セルからそのまま個別ABC記録を起票できます。</div>
           </div>
+
+          <div id="tab-clients" class="tabpanel">
+            <div class="section">
+              <h2>利用者情報の登録</h2>
+              <input type="hidden" id="clientId" />
+              <div class="grid3">
+                <div>
+                  <label for="clientDisplayName">利用者名 / イニシャル</label>
+                  <input id="clientDisplayName" type="text" placeholder="例：A児 / K.Y" />
+                </div>
+                <div>
+                  <label for="clientKana">ふりがな</label>
+                  <input id="clientKana" type="text" placeholder="例：えーじ" />
+                </div>
+                <div>
+                  <label for="clientBirthDate">生年月日</label>
+                  <input id="clientBirthDate" type="date" />
+                </div>
+              </div>
+              <div class="grid2">
+                <div>
+                  <label for="clientSupportLevel">支援区分 / 学年等</label>
+                  <input id="clientSupportLevel" type="text" placeholder="例：小学3年 / 放デイ" />
+                </div>
+                <div>
+                  <label for="clientContactNote">連絡時メモ</label>
+                  <input id="clientContactNote" type="text" placeholder="例：送迎時は保護者へ口頭共有" />
+                </div>
+              </div>
+              <label for="clientMemo">備考</label>
+              <textarea id="clientMemo" placeholder="配慮事項、好きな活動、苦手刺激など"></textarea>
+              <div class="btnrow hide-print" style="margin-top:12px">
+                <button id="saveClientBtn" class="primary">利用者情報を保存</button>
+                <button id="newClientBtn">新規入力に戻す</button>
+                <button id="deleteClientBtn" class="danger">この利用者を削除</button>
+              </div>
+            </div>
+            <div class="section" style="margin-top:14px">
+              <h3>登録済み利用者</h3>
+              <div id="clientList" class="list"></div>
+            </div>
+          </div>
         </div>
       </main>
     </div>
   </div>
 
+  <script type="module" src="./assets/js/app.js"></script>
+</body>
+</html>

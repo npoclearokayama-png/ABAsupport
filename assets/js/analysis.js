@@ -1,4 +1,4 @@
-import { $, escapeHtml, collectForm, includesAny, state, todayStr } from './core.js';
+import { $, escapeHtml, collectForm, includesAny } from './core.js';
 
 export function analyzeRecord(rec){
   const textA = [...(rec.antecedentChecks || []), rec.antecedentText || '', rec.settingEvents || '', rec.environmentNote || '', rec.targetActivity || '', rec.placeName || '', rec.peoplePresent || ''].join(' / ');
