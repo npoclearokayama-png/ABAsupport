@@ -1,7 +1,10 @@
 import { $ } from './core.js';
 
 export function clearCanvas(id){
-  const c = $(id), ctx = c.getContext('2d');
+  const c = $(id);
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  if (!ctx) return;
   ctx.clearRect(0,0,c.width,c.height);
   ctx.fillStyle = '#94a3b8';
   ctx.font = '14px sans-serif';
@@ -10,7 +13,9 @@ export function clearCanvas(id){
 
 export function drawBarChart(id, labels, values, opts={}){
   const c = $(id);
+  if (!c) return;
   const ctx = c.getContext('2d');
+  if (!ctx) return;
   const w = c.width, h = c.height;
   ctx.clearRect(0,0,w,h);
   ctx.fillStyle = '#fff';
