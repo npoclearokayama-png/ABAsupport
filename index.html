@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>ABA行動記録・事例蓄積ツール 実運用版</title>
+  <link rel="stylesheet" href="./assets/css/styles.css" />
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="topbar hide-print">
+      <div>
+        <h1>ABA行動記録・事例蓄積ツール 実運用版</h1>
+        <div class="subtitle">複数事例保存、利用者別履歴、推移グラフ、月次レポート、週次30分ヒートマップ、セルからABC起票、AI用コピー、JSONバックアップ対応</div>
+      </div>
+      <div class="btnrow">
+        <button id="newCaseBtn" class="primary">新規記録</button>
+        <button id="saveCaseBtn">保存 / 更新</button>
+        <button id="duplicateBtn">複製</button>
+        <button id="printBtn">印刷 / PDF</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar-sticky">
+        <div class="card panel hide-print">
+          <h2>記録一覧</h2>
+          <div class="stats">
+            <div class="stat"><div class="num" id="statCount">0</div><div class="lab">保存件数</div></div>
+            <div class="stat"><div class="num" id="statClient">0</div><div class="lab">利用者数</div></div>
+          </div>
+          <label for="searchInput">検索</label>
+          <input id="searchInput" type="text" placeholder="利用者名、行動、場面、担当者など" />
+          <div class="grid2" style="margin-top:10px">
+            <div>
+              <label for="filterClient">利用者</label>
+              <select id="filterClient"><option value="">すべて</option></select>
+            </div>
+            <div>
+              <label for="sortSelect">並び順</label>
+              <select id="sortSelect">
+                <option value="desc">新しい順</option>
+                <option value="asc">古い順</option>
+                <option value="client">利用者名順</option>
+                <option value="behavior">行動名順</option>
+              </select>
+            </div>
+          </div>
+          <div class="btnrow" style="margin-top:12px">
+            <button id="exportBtn">全件JSON書き出し</button>
+            <button id="importBtn">JSON読込</button>
+            <input id="importFile" type="file" accept="application/json" class="hidden" />
+          </div>
+          <div class="footer-note">端末内保存です。共有PCではバックアップと削除管理を明確にしてください。</div>
+          <div id="recordList" class="list" style="margin-top:14px"></div>
+        </div>
+      </aside>
+
+      <main>
+        <div class="card panel">
+          <div class="notice">このツールは診断を行うものではありません。機能は仮説であり、自傷・他害・急激な変化・虐待や身体疾患の疑いがある場合は専門機関の検討を優先してください。</div>
+
+          <div class="tabbar hide-print" style="margin-top:14px">
+            <button data-tab="record" class="active-tab">記録入力</button>
+            <button data-tab="history">利用者別履歴</button>
+            <button data-tab="week">週次30分表</button>
+          </div>
+
+          <div id="tab-record" class="tabpanel active">
+            <form id="caseForm">
+              <input type="hidden" id="recordId" />
+              <div class="section">
+                <h2>基本情報</h2>
+                <div class="grid4">
+                  <div>
+                    <label for="recordDate">記録日</label>
+                    <input id="recordDate" type="date" />
+                  </div>
+                  <div>
+                    <label for="recordTime">発生時刻</label>
+                    <input id="recordTime" type="time" />
+                  </div>
+                  <div>
+                    <label for="clientName">利用者名 / イニシャル</label>
+                    <input id="clientName" type="text" placeholder="例：A児 / K.Y" />
+                  </div>
+                  <div>
+                    <label for="staffName">記録者</label>
+                    <input id="staffName" type="text" placeholder="例：延原" />
+                  </div>
+                </div>
+                <div class="grid4">
+                  <div>
+                    <label for="settingName">場面カテゴリ</label>
+                    <select id="settingName">
+                      <option>学習</option><option>食事</option><option>自由時間</option><option>移行場面</option><option>排泄</option><option>集団活動</option><option>送迎</option><option>就労</option><option>家庭</option><option>その他</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="placeName">場所</label>
+                    <input id="placeName" type="text" placeholder="例：教室、食堂、居室" />
+                  </div>
+                  <div>
+                    <label for="targetActivity">活動名</label>
+                    <input id="targetActivity" type="text" placeholder="例：プリント、昼食、片付け" />
+                  </div>
+                  <div>
+                    <label for="peoplePresent">同席者</label>
+                    <input id="peoplePresent" type="text" placeholder="例：職員2名、児童3名" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="section">
+                <h2>対象行動の定義</h2>
+                <label for="behaviorName">問題行動名</label>
+                <input id="behaviorName" type="text" placeholder="例：叩く、叫ぶ、床に寝転ぶ、物を投げる" />
+                <label for="behaviorDef">操作的定義</label>
+                <textarea id="behaviorDef" placeholder="誰が見ても同じ行動として数えられるように、観察可能な形で記述"></textarea>
+                <div class="grid4">
+                  <div>
+                    <label for="behaviorFrequency">頻度</label>
+                    <input id="behaviorFrequency" type="text" placeholder="例：3回、ほぼ毎回" />
+                  </div>
+                  <div>
+                    <label for="behaviorDuration">持続時間</label>
+                    <input id="behaviorDuration" type="text" placeholder="例：2分、15秒" />
+                  </div>
+                  <div>
+                    <label for="behaviorIntensity">強度</label>
+                    <select id="behaviorIntensity">
+                      <option>軽度</option><option selected>中等度</option><option>重度</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="riskLevel">安全面</label>
+                    <select id="riskLevel">
+                      <option>低</option><option>中</option><option>高</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section">
+                <h2>背景条件 / 設定事象</h2>
+                <div class="grid2">
+                  <div>
+                    <label for="settingEvents">背景条件</label>
+                    <textarea id="settingEvents" placeholder="睡眠不足、空腹、体調不良、環境変化、待機時間の長さ、人間関係、前の活動で疲れていた等"></textarea>
+                  </div>
+                  <div>
+                    <label for="environmentNote">環境要因</label>
+                    <textarea id="environmentNote" placeholder="騒音、照明、人数、暑さ、場所の狭さ、見通しの有無など"></textarea>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section">
+                <h2>ABC記録</h2>
+                <label>先行事象チェック</label>
+                <div class="checkgrid" id="antecedentChecks"></div>
+                <label for="antecedentText">先行事象の自由記述</label>
+                <textarea id="antecedentText" placeholder="直前に何が起きたか。課題提示、終了要求、待機、拒否された、取り上げられた等"></textarea>
+
+                <label for="behaviorText">行動の具体的記述</label>
+                <textarea id="behaviorText" placeholder="何をしたか。どの程度か。誰に対してか。どれくらい続いたか"></textarea>
+
+                <label>結果事象チェック</label>
+                <div class="checkgrid" id="consequenceChecks"></div>
+                <label for="consequenceText">結果事象の自由記述</label>
+                <textarea id="consequenceText" placeholder="周囲がどう対応し、その結果本人が何を得たか / 何から逃れたか"></textarea>
+              </div>
+
+              <div class="section">
+                <h2>既存の支援と評価</h2>
+                <div class="grid2">
+                  <div>
+                    <label for="currentSupport">その場で行った対応</label>
+                    <textarea id="currentSupport" placeholder="声かけ、距離を取った、要求を一旦下げた、視覚支援を追加した等"></textarea>
+                  </div>
+                  <div>
+                    <label for="responseEffect">その対応の結果</label>
+                    <textarea id="responseEffect" placeholder="落ち着いた、増えた、再発した、別の行動に移った等"></textarea>
+                  </div>
+                </div>
+                <div class="grid2">
+                  <div>
+                    <label for="hypothesisMemo">見立てメモ</label>
+                    <textarea id="hypothesisMemo" placeholder="既に考えている仮説や留意点"></textarea>
+                  </div>
+                  <div>
+                    <label for="nextAction">次回に向けた修正案</label>
+                    <textarea id="nextAction" placeholder="予防策、代替行動、環境調整、強化方法など"></textarea>
+                  </div>
+                </div>
+              </div>
+            </form>
+
+            <div class="section">
+              <div class="inline-actions hide-print">
+                <button id="analyzeBtn" class="primary">機能仮説を更新</button>
+                <button id="copySummaryBtn">記録要約をコピー</button>
+                <button id="copyPromptBtn">生成AI用プロンプトをコピー</button>
+                <button id="deleteBtn" class="danger">この記録を削除</button>
+              </div>
+
+              <div class="result-grid" style="margin-top:14px">
+                <div>
+                  <div class="box">
+                    <h2>機能仮説</h2>
+                    <div id="rankWrap" class="rank"></div>
+                    <div id="basisWrap" class="footer-note"></div>
+                  </div>
+                  <div class="box" style="margin-top:14px">
+                    <h2>推奨される初期介入</h2>
+                    <div id="interventionWrap"></div>
+                  </div>
+                </div>
+                <div>
+                  <div class="box">
+                    <h2>観察の追加ポイント</h2>
+                    <div id="observeWrap"></div>
+                  </div>
+                  <div class="box" style="margin-top:14px">
+                    <h2>ケース要約</h2>
+                    <textarea id="summaryOutput" readonly style="min-height:300px"></textarea>
+                  </div>
+                </div>
+              </div>
+              <div class="footer-note">出力は仮説整理用です。自動判定に過度に依存せず、実測データとチーム内検討で更新してください。</div>
+            </div>
+          </div>
+
+          <div id="tab-history" class="tabpanel">
+            <div class="section">
+              <h2>利用者別履歴ページ</h2>
+              <div class="grid3">
+                <div>
+                  <label for="historyClientSelect">利用者</label>
+                  <select id="historyClientSelect"><option value="">利用者を選択</option></select>
+                </div>
+                <div>
+                  <label for="historyBehaviorFilter">問題行動で絞る</label>
+                  <select id="historyBehaviorFilter"><option value="">すべて</option></select>
+                </div>
+                <div>
+                  <label for="historyRange">表示範囲</label>
+                  <select id="historyRange">
+                    <option value="30">直近30日</option>
+                    <option value="90">直近90日</option>
+                    <option value="365">直近1年</option>
+                    <option value="9999">全期間</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="history-layout" style="margin-top:14px">
+              <div>
+                <div class="chart-grid">
+                  <div class="canvasbox">
+                    <h3>日別件数の推移</h3>
+                    <canvas id="dailyTrendChart" width="600" height="260"></canvas>
+                  </div>
+                  <div class="canvasbox">
+                    <h3>時間帯別の発生傾向</h3>
+                    <canvas id="hourTrendChart" width="600" height="260"></canvas>
+                  </div>
+                </div>
+                <div class="canvasbox" style="margin-top:16px">
+                  <h3>機能仮説の分布</h3>
+                  <canvas id="functionDistChart" width="900" height="260"></canvas>
+                </div>
+                <div class="canvasbox month-report">
+                  <div class="slot-tools hide-print">
+                    <h3 style="margin:0">月次レポート</h3>
+                    <div class="btnrow">
+                      <button id="generateMonthlyReportBtn" class="primary">月次レポートを生成</button>
+                      <button id="copyMonthlyReportBtn">月次レポートをコピー</button>
+                    </div>
+                  </div>
+                  <div class="kpi-grid" style="margin-top:10px">
+                    <div class="stat"><div class="num" id="monthTotalCases">0</div><div class="lab">対象件数</div></div>
+                    <div class="stat"><div class="num" id="monthTopBehavior">-</div><div class="lab">最多行動</div></div>
+                    <div class="stat"><div class="num" id="monthTopFunction">-</div><div class="lab">主機能仮説</div></div>
+                    <div class="stat"><div class="num" id="monthTopTime">-</div><div class="lab">目立つ時間帯</div></div>
+                  </div>
+                  <textarea id="monthlyReportOutput" readonly style="margin-top:12px"></textarea>
+                </div>
+              </div>
+              <div>
+                <div class="canvasbox">
+                  <h3>履歴一覧</h3>
+                  <div id="historySummary" class="small" style="margin-bottom:10px"></div>
+                  <div id="historyList" class="history-list"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="tab-week" class="tabpanel">
+            <div class="section">
+              <h2>週次30分表</h2>
+              <div class="grid4">
+                <div>
+                  <label for="weekClientSelect">利用者</label>
+                  <select id="weekClientSelect"><option value="">利用者を選択</option></select>
+                </div>
+                <div>
+                  <label for="weekBehaviorName">対象行動ラベル</label>
+                  <input id="weekBehaviorName" type="text" placeholder="例：叩く / 叫ぶ / 離席" />
+                </div>
+                <div>
+                  <label for="weekStartDate">週の開始日</label>
+                  <input id="weekStartDate" type="date" />
+                </div>
+                <div>
+                  <label for="weekCellMode">セル入力</label>
+                  <select id="weekCellMode">
+                    <option value="cycle">クリックで 0→1→2→3→4</option>
+                    <option value="binary">クリックで 0⇄1</option>
+                  </select>
+                </div>
+              </div>
+              <div class="btnrow hide-print" style="margin-top:12px">
+                <button id="saveWeekBtn" class="primary">週次表を保存</button>
+                <button id="clearWeekBtn">この週をクリア</button>
+                <button id="copyWeekSummaryBtn">週次サマリーをコピー</button>
+              </div>
+              <div class="heat-legend" style="margin-top:12px">
+                <span class="sw" style="background:var(--heat0)"></span>0 なし
+                <span class="sw" style="background:var(--heat1)"></span>1 少し
+                <span class="sw" style="background:var(--heat2)"></span>2 中等度
+                <span class="sw" style="background:var(--heat3)"></span>3 多い
+                <span class="sw" style="background:var(--heat4)"></span>4 強い / 目立つ
+              </div>
+            </div>
+
+            <div class="week-summary" style="margin-top:14px">
+              <div class="stat"><div class="num" id="weekTotalSlots">0</div><div class="lab">記録セル数（0以外）</div></div>
+              <div class="stat"><div class="num" id="weekPeakDay">-</div><div class="lab">最も多い曜日</div></div>
+              <div class="stat"><div class="num" id="weekPeakTime">-</div><div class="lab">目立つ時間帯</div></div>
+            </div>
+
+            <div class="slot-tools hide-print">
+              <div class="slot-note">セルをクリックで強度入力。Alt/Option+クリックで、その枠の時刻を引き継いだABC記録を即時起票します。</div>
+              <div class="btnrow">
+                <button id="openSlotToRecordBtn">選択中セルからABC記録を起票</button>
+              </div>
+            </div>
+            <div class="heat-wrap" style="margin-top:14px">
+              <table class="week-grid" id="weekGridTable"></table>
+            </div>
+            <div class="footer-note">週次表は、詳細な1件記録とは別に「いつ起こりやすいか」を俯瞰する観察シートとして使う想定です。セルからそのまま個別ABC記録を起票できます。</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
