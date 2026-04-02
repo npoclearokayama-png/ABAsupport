@@ -1,5 +1,7 @@
 import { ANTECEDENT_OPTIONS, CONSEQUENCE_OPTIONS } from './config.js';
 import {
+  $, state, escapeHtml, makeCheckGroup, loadAll, saveRecords, saveClients, normalizeClient,
+=======
   $, state, escapeHtml, makeCheckGroup, loadAll, saveRecords,
   collectForm, fillForm, blankForm, filteredRecords, refreshClientSelectors,
   exportJson, importJson, copyText, todayStr, currentTimeStr
@@ -89,6 +91,7 @@ function switchTab(tab){
   $(`tab-${tab}`).classList.add('active');
   if (tab === 'history') renderHistoryTab();
   if (tab === 'week') renderWeekGrid(switchTab);
+  if (tab === 'clients') renderClientList();
 }
 
 function updateClientViews(preferredClient=''){
@@ -100,6 +103,102 @@ function updateClientViews(preferredClient=''){
   populateBehaviorFilter();
   renderHistoryTab();
   renderWeekGrid(switchTab);
+  renderClientList();
+}
+
+function collectClientForm(){
+  return normalizeClient({
+    id: $('clientId').value || crypto.randomUUID(),
+    displayName: $('clientDisplayName').value.trim(),
+    kana: $('clientKana').value.trim(),
+    birthDate: $('clientBirthDate').value || '',
+    supportLevel: $('clientSupportLevel').value.trim(),
+    contactNote: $('clientContactNote').value.trim(),
+    memo: $('clientMemo').value.trim(),
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+function clearClientForm(){
+  $('clientId').value = '';
+  $('clientDisplayName').value = '';
+  $('clientKana').value = '';
+  $('clientBirthDate').value = '';
+  $('clientSupportLevel').value = '';
+  $('clientContactNote').value = '';
+  $('clientMemo').value = '';
+}
+
+function fillClientForm(client){
+  $('clientId').value = client.id;
+  $('clientDisplayName').value = client.displayName;
+  $('clientKana').value = client.kana || '';
+  $('clientBirthDate').value = client.birthDate || '';
+  $('clientSupportLevel').value = client.supportLevel || '';
+  $('clientContactNote').value = client.contactNote || '';
+  $('clientMemo').value = client.memo || '';
+}
+
+function upsertClient(){
+  const client = collectClientForm();
+  if (!client.displayName) {
+    alert('利用者名を入力してください。');
+    return;
+  }
+  const duplicate = state.clients.find(c => c.displayName === client.displayName && c.id !== client.id);
+  if (duplicate) {
+    alert('同名の利用者が既に登録されています。編集する場合は一覧から選択してください。');
+    return;
+  }
+  const idx = state.clients.findIndex(c => c.id === client.id);
+  if (idx >= 0) state.clients[idx] = client;
+  else state.clients.push(client);
+  state.clients.sort((a,b) => a.displayName.localeCompare(b.displayName, 'ja'));
+  saveClients();
+  refreshClientSelectors();
+  $('clientName').value = client.displayName;
+  $('weekClientSelect').value = client.displayName;
+  renderClientList();
+}
+
+function deleteClient(){
+  const id = $('clientId').value;
+  if (!id) return;
+  if (!confirm('この利用者情報を削除します。')) return;
+  const removed = state.clients.find(c => c.id === id);
+  state.clients = state.clients.filter(c => c.id !== id);
+  saveClients();
+  refreshClientSelectors();
+  if (removed && $('clientName').value === removed.displayName) $('clientName').value = '';
+  clearClientForm();
+  renderClientList();
+}
+
+function renderClientList(){
+  const wrap = $('clientList');
+  if (!wrap) return;
+  if (!state.clients.length) {
+    wrap.innerHTML = '<div class="empty">利用者情報が未登録です。</div>';
+    return;
+  }
+  wrap.innerHTML = state.clients.map(client => `
+    <div class="record client-item" data-client-id="${escapeHtml(client.id)}">
+      <div class="record-head">
+        <div>
+          <div class="record-title">${escapeHtml(client.displayName)}</div>
+          <div class="record-meta">${escapeHtml(client.kana || 'ふりがな未登録')}</div>
+        </div>
+        <div class="record-meta">${escapeHtml(client.supportLevel || '')}</div>
+      </div>
+      <div class="small" style="margin-top:8px">${escapeHtml(client.contactNote || client.memo || 'メモ未登録')}</div>
+    </div>
+  `).join('');
+  wrap.querySelectorAll('.client-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const client = state.clients.find(c => c.id === el.dataset.clientId);
+      if (client) fillClientForm(client);
+    });
+  });
 }
 
 function wireEvents(){
@@ -127,9 +226,12 @@ function wireEvents(){
   $('openSlotToRecordBtn').addEventListener('click', () => prefillRecordFromWeekSlot(state.selectedWeekSlot, switchTab));
   $('generateMonthlyReportBtn').addEventListener('click', renderMonthlyReport);
   $('copyMonthlyReportBtn').addEventListener('click', () => copyText($('monthlyReportOutput').value));
+  $('saveClientBtn').addEventListener('click', upsertClient);
+  $('newClientBtn').addEventListener('click', clearClientForm);
+  $('deleteClientBtn').addEventListener('click', deleteClient);
 
   document.querySelectorAll('input, textarea, select').forEach(el => {
-    if (!['searchInput','filterClient','sortSelect','importFile','historyClientSelect','historyBehaviorFilter','historyRange','weekClientSelect','weekBehaviorName','weekStartDate','weekCellMode'].includes(el.id)) {
+    if (!['searchInput','filterClient','sortSelect','importFile','historyClientSelect','historyBehaviorFilter','historyRange','weekClientSelect','weekBehaviorName','weekStartDate','weekCellMode','clientId','clientDisplayName','clientKana','clientBirthDate','clientSupportLevel','clientContactNote','clientMemo'].includes(el.id)) {
       el.addEventListener('input', () => { renderResults(analyzeCurrent()); linkRecordToWeekFields(); });
       el.addEventListener('change', () => { renderResults(analyzeCurrent()); linkRecordToWeekFields(); });
     }
@@ -141,6 +243,7 @@ function onDataChanged(){
   refreshClientSelectors();
   renderHistoryTab();
   renderWeekGrid(switchTab);
+  renderClientList();
 }
 
 function init(){
@@ -153,6 +256,7 @@ function init(){
   blankForm(renderAnalysis, renderList);
   renderHistoryTab();
   renderWeekGrid(switchTab);
+  renderClientList();
   wireEvents();
 }
 
