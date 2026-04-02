@@ -1,11 +1,13 @@
 import { ANTECEDENT_OPTIONS, CONSEQUENCE_OPTIONS } from './config.js';
 import {
   $, state, escapeHtml, makeCheckGroup, loadAll, saveRecords, saveClients, normalizeClient,
+=======
+  $, state, escapeHtml, makeCheckGroup, loadAll, saveRecords,
   collectForm, fillForm, blankForm, filteredRecords, refreshClientSelectors,
   exportJson, importJson, copyText, todayStr, currentTimeStr
 } from './core.js';
 import { analyzeRecord, analyzeCurrent, renderResults, renderAnalysis, buildPrompt } from './analysis.js';
-import { populateBehaviorFilter, renderHistoryTab, renderMonthlyReport } from './history.js';
+import { populateBehaviorFilter, renderHistoryTab } from './history.js';
 import { renderWeekGrid, saveWeek, clearWeek, buildWeekSummaryText, prefillRecordFromWeekSlot, ensureWeekStartDefault, linkRecordToWeekFields } from './week.js';
 
 function upsertRecord(){
