@@ -1,19 +1,21 @@
 import { ANTECEDENT_OPTIONS, CONSEQUENCE_OPTIONS } from './config.js';
 import {
   $, state, escapeHtml, makeCheckGroup, loadAll, saveRecords, saveClients, normalizeClient,
-=======
-  $, state, escapeHtml, makeCheckGroup, loadAll, saveRecords,
   collectForm, fillForm, blankForm, filteredRecords, refreshClientSelectors,
   exportJson, importJson, copyText, todayStr, currentTimeStr
 } from './core.js';
 import { analyzeRecord, analyzeCurrent, renderResults, renderAnalysis, buildPrompt } from './analysis.js';
-import { populateBehaviorFilter, renderHistoryTab } from './history.js';
+import { populateBehaviorFilter, renderHistoryTab, renderMonthlyReport } from './history.js';
 import { renderWeekGrid, saveWeek, clearWeek, buildWeekSummaryText, prefillRecordFromWeekSlot, ensureWeekStartDefault, linkRecordToWeekFields } from './week.js';
 
 function upsertRecord(){
   const rec = collectForm();
-  if (!rec.clientName && !rec.behaviorName) {
-    alert('少なくとも「利用者名」と「問題行動名」のどちらかは入れてください。');
+  if (!rec.clientName) {
+    alert('利用者を選択してください。利用者情報タブで登録できます。');
+    return;
+  }
+  if (!rec.behaviorName) {
+    alert('問題行動名を入力してください。');
     return;
   }
   const idx = state.records.findIndex(r => r.id === rec.id);
@@ -68,7 +70,7 @@ function renderList(){
     div.innerHTML = `
       <div class="record-head">
         <div>
-          <div class="record-title">${escapeHtml(rec.clientName || '名称未入力')} / ${escapeHtml(rec.behaviorName || '行動名未入力')}</div>
+          <div class="record-title">${escapeHtml(rec.clientName || '名称未入力')} / ${escapeHtml(rec.behaviorName || '行動名入力')}</div>
           <div class="record-meta">${escapeHtml(rec.recordDate || '')} ${escapeHtml(rec.recordTime || '')} / ${escapeHtml(rec.settingName || '')} / ${escapeHtml(rec.staffName || '')}</div>
         </div>
         <div class="record-meta">${escapeHtml(rec.riskLevel || '')}</div>
@@ -164,6 +166,12 @@ function upsertClient(){
 function deleteClient(){
   const id = $('clientId').value;
   if (!id) return;
+  const target = state.clients.find(c => c.id === id);
+  const linkedCount = target ? state.records.filter(r => (r.clientName || '') === target.displayName).length : 0;
+  if (linkedCount > 0) {
+    alert(`この利用者は記録${linkedCount}件で使用中のため削除できません。先に記録の利用者名を変更してください。`);
+    return;
+  }
   if (!confirm('この利用者情報を削除します。')) return;
   const removed = state.clients.find(c => c.id === id);
   state.clients = state.clients.filter(c => c.id !== id);
