@@ -70,7 +70,7 @@ function renderList(){
     div.innerHTML = `
       <div class="record-head">
         <div>
-          <div class="record-title">${escapeHtml(rec.clientName || '名称未入力')} / ${escapeHtml(rec.behaviorName || '行動名入力')}</div>
+          <div class="record-title">${escapeHtml(rec.clientName || '名称未入力')} / ${escapeHtml(rec.behaviorName || '行動名未入力')}</div>
           <div class="record-meta">${escapeHtml(rec.recordDate || '')} ${escapeHtml(rec.recordTime || '')} / ${escapeHtml(rec.settingName || '')} / ${escapeHtml(rec.staffName || '')}</div>
         </div>
         <div class="record-meta">${escapeHtml(rec.riskLevel || '')}</div>
@@ -90,7 +90,9 @@ function switchTab(tab){
   state.activeTab = tab;
   document.querySelectorAll('.tabbar button').forEach(btn => btn.classList.toggle('active-tab', btn.dataset.tab === tab));
   document.querySelectorAll('.tabpanel').forEach(p => p.classList.remove('active'));
-  $(`tab-${tab}`).classList.add('active');
+  const panel = $(`tab-${tab}`);
+  if (!panel) return;
+  panel.classList.add('active');
   if (tab === 'history') renderHistoryTab();
   if (tab === 'week') renderWeekGrid(switchTab);
   if (tab === 'clients') renderClientList();
@@ -169,7 +171,7 @@ function deleteClient(){
   const target = state.clients.find(c => c.id === id);
   const linkedCount = target ? state.records.filter(r => (r.clientName || '') === target.displayName).length : 0;
   if (linkedCount > 0) {
-    alert(`この利用者は記録${linkedCount}件で使用中のため削除できません。先に記録の利用者名を変更してください。`);
+    alert(`この利用者は記録${linkedCount}件で使中のため削除できません。先に記録の利用者名を変更してください。`);
     return;
   }
   if (!confirm('この利用者情報を削除します。')) return;
@@ -210,33 +212,34 @@ function renderClientList(){
 }
 
 function wireEvents(){
-  $('newCaseBtn').addEventListener('click', () => blankForm(renderAnalysis, renderList));
-  $('saveCaseBtn').addEventListener('click', upsertRecord);
-  $('duplicateBtn').addEventListener('click', duplicateRecord);
-  $('deleteBtn').addEventListener('click', deleteRecord);
-  $('analyzeBtn').addEventListener('click', () => renderResults(analyzeCurrent()));
-  $('copySummaryBtn').addEventListener('click', () => copyText($('summaryOutput').value));
-  $('copyPromptBtn').addEventListener('click', () => copyText(buildPrompt()));
-  $('printBtn').addEventListener('click', () => window.print());
-  $('exportBtn').addEventListener('click', exportJson);
-  $('importBtn').addEventListener('click', () => $('importFile').click());
-  $('importFile').addEventListener('change', e => { if (e.target.files[0]) importJson(e.target.files[0], onDataChanged); e.target.value=''; });
+  const on = (id, event, handler) => { const el = $(id); if (el) el.addEventListener(event, handler); };
+  on('newCaseBtn', 'click', () => blankForm(renderAnalysis, renderList));
+  on('saveCaseBtn', 'click', upsertRecord);
+  on('duplicateBtn', 'click', duplicateRecord);
+  on('deleteBtn', 'click', deleteRecord);
+  on('analyzeBtn', 'click', () => renderResults(analyzeCurrent()));
+  on('copySummaryBtn', 'click', () => copyText($('summaryOutput')?.value || ''));
+  on('copyPromptBtn', 'click', () => copyText(buildPrompt()));
+  on('printBtn', 'click', () => window.print());
+  on('exportBtn', 'click', exportJson);
+  on('importBtn', 'click', () => $('importFile')?.click());
+  on('importFile', 'change', e => { if (e.target.files[0]) importJson(e.target.files[0], onDataChanged); e.target.value=''; });
 
-  ['searchInput','filterClient','sortSelect'].forEach(id => $(id).addEventListener('input', renderList));
-  ['filterClient','sortSelect'].forEach(id => $(id).addEventListener('change', renderList));
+  ['searchInput','filterClient','sortSelect'].forEach(id => on(id, 'input', renderList));
+  ['filterClient','sortSelect'].forEach(id => on(id, 'change', renderList));
   document.querySelectorAll('.tabbar button').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
 
-  ['historyClientSelect','historyBehaviorFilter','historyRange'].forEach(id => $(id).addEventListener('change', renderHistoryTab));
-  ['weekClientSelect','weekBehaviorName','weekStartDate','weekCellMode'].forEach(id => $(id).addEventListener('change', () => renderWeekGrid(switchTab)));
-  $('saveWeekBtn').addEventListener('click', saveWeek);
-  $('clearWeekBtn').addEventListener('click', () => clearWeek(() => renderWeekGrid(switchTab)));
-  $('copyWeekSummaryBtn').addEventListener('click', () => copyText(buildWeekSummaryText()));
-  $('openSlotToRecordBtn').addEventListener('click', () => prefillRecordFromWeekSlot(state.selectedWeekSlot, switchTab));
-  $('generateMonthlyReportBtn').addEventListener('click', renderMonthlyReport);
-  $('copyMonthlyReportBtn').addEventListener('click', () => copyText($('monthlyReportOutput').value));
-  $('saveClientBtn').addEventListener('click', upsertClient);
-  $('newClientBtn').addEventListener('click', clearClientForm);
-  $('deleteClientBtn').addEventListener('click', deleteClient);
+  ['historyClientSelect','historyBehaviorFilter','historyRange'].forEach(id => on(id, 'change', renderHistoryTab));
+  ['weekClientSelect','weekBehaviorName','weekStartDate','weekCellMode'].forEach(id => on(id, 'change', () => renderWeekGrid(switchTab)));
+  on('saveWeekBtn', 'click', saveWeek);
+  on('clearWeekBtn', 'click', () => clearWeek(() => renderWeekGrid(switchTab)));
+  on('copyWeekSummaryBtn', 'click', () => copyText(buildWeekSummaryText()));
+  on('openSlotToRecordBtn', 'click', () => prefillRecordFromWeekSlot(state.selectedWeekSlot, switchTab));
+  on('generateMonthlyReportBtn', 'click', renderMonthlyReport);
+  on('copyMonthlyReportBtn', 'click', () => copyText($('monthlyReportOutput')?.value || ''));
+  on('saveClientBtn', 'click', upsertClient);
+  on('newClientBtn', 'click', clearClientForm);
+  on('deleteClientBtn', 'click', deleteClient);
 
   document.querySelectorAll('input, textarea, select').forEach(el => {
     if (!['searchInput','filterClient','sortSelect','importFile','historyClientSelect','historyBehaviorFilter','historyRange','weekClientSelect','weekBehaviorName','weekStartDate','weekCellMode','clientId','clientDisplayName','clientKana','clientBirthDate','clientSupportLevel','clientContactNote','clientMemo'].includes(el.id)) {
