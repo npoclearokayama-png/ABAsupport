@@ -251,6 +251,7 @@ export function refreshClientSelectors(){
   const allClients = [...new Set([...registeredClients, ...recordClients])].sort((a,b)=>a.localeCompare(b,'ja'));
   ['clientName','filterClient','historyClientSelect','weekClientSelect'].forEach(id => {
     const select = $(id);
+    if (!select) return;
     const cur = select.value;
     const first = id === 'filterClient' ? '<option value="">すべて</option>' : '<option value="">利用者を選択</option>';
     const source = id === 'clientName' ? registeredClients : allClients;
