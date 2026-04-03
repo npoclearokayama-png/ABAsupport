@@ -1,7 +1,8 @@
-import { STORAGE_KEY, WEEK_STORAGE_KEY, FORM_FIELDS } from './config.js';
+import { STORAGE_KEY, WEEK_STORAGE_KEY, CLIENT_STORAGE_KEY, FORM_FIELDS } from './config.js';
 
 export const state = {
   records: [],
+  clients: [],
   selectedId: null,
   weekMaps: {},
   activeTab: 'record',
@@ -65,11 +66,106 @@ export function timeIndexToLabel(i){ const h=Math.floor(i/2); const m=i%2===0?'0
 export function parseDateTime(rec){ const ds=rec.recordDate||todayStr(); const ts=rec.recordTime||'00:00'; return new Date(`${ds}T${ts}:00`); }
 export function includesAny(text, arr){ return arr.some(k => text.includes(k)); }
 
+export function normalizeRecord(rec={}){
+  const safe = rec && typeof rec === 'object' ? rec : {};
+  return {
+    id: String(safe.id || crypto.randomUUID()),
+    recordDate: String(safe.recordDate || todayStr()),
+    recordTime: String(safe.recordTime || ''),
+    clientName: String(safe.clientName || '').trim(),
+    staffName: String(safe.staffName || '').trim(),
+    settingName: String(safe.settingName || '学習'),
+    placeName: String(safe.placeName || '').trim(),
+    targetActivity: String(safe.targetActivity || '').trim(),
+    peoplePresent: String(safe.peoplePresent || '').trim(),
+    behaviorName: String(safe.behaviorName || '').trim(),
+    behaviorDef: String(safe.behaviorDef || '').trim(),
+    behaviorFrequency: String(safe.behaviorFrequency || '').trim(),
+    behaviorDuration: String(safe.behaviorDuration || '').trim(),
+    behaviorIntensity: String(safe.behaviorIntensity || '中等度'),
+    riskLevel: String(safe.riskLevel || '低'),
+    settingEvents: String(safe.settingEvents || '').trim(),
+    environmentNote: String(safe.environmentNote || '').trim(),
+    antecedentChecks: Array.isArray(safe.antecedentChecks) ? safe.antecedentChecks.map(x => String(x)) : [],
+    antecedentText: String(safe.antecedentText || '').trim(),
+    behaviorText: String(safe.behaviorText || '').trim(),
+    consequenceChecks: Array.isArray(safe.consequenceChecks) ? safe.consequenceChecks.map(x => String(x)) : [],
+    consequenceText: String(safe.consequenceText || '').trim(),
+    currentSupport: String(safe.currentSupport || '').trim(),
+    responseEffect: String(safe.responseEffect || '').trim(),
+    hypothesisMemo: String(safe.hypothesisMemo || '').trim(),
+    nextAction: String(safe.nextAction || '').trim(),
+    updatedAt: String(safe.updatedAt || new Date().toISOString()),
+  };
+}
+
+export function normalizeWeekMatrix(matrix){
+  return Array.from({length:48}, (_, t) =>
+    Array.from({length:7}, (_, d) => {
+      const raw = matrix?.[t]?.[d];
+      const n = Number.isFinite(raw) ? raw : Number(raw);
+      return n >= 0 && n <= 4 ? Math.round(n) : 0;
+    })
+  );
+}
+
+export function normalizeClient(client={}){
+  const safe = client && typeof client === 'object' ? client : {};
+  return {
+    id: String(safe.id || crypto.randomUUID()),
+    displayName: String(safe.displayName || '').trim(),
+    kana: String(safe.kana || '').trim(),
+    birthDate: String(safe.birthDate || ''),
+    supportLevel: String(safe.supportLevel || '').trim(),
+    contactNote: String(safe.contactNote || '').trim(),
+    memo: String(safe.memo || '').trim(),
+    updatedAt: String(safe.updatedAt || new Date().toISOString()),
+  };
+}
+
+export function ensureClientsForRecords(records=[], clients=[]){
+  const existingNames = new Set(clients.map(c => c.displayName).filter(Boolean));
+  const generated = [...clients];
+  records.forEach(rec => {
+    const name = String(rec.clientName || '').trim();
+    if (!name || existingNames.has(name)) return;
+    generated.push(normalizeClient({ displayName: name }));
+    existingNames.add(name);
+  });
+  return generated.sort((a,b) => a.displayName.localeCompare(b.displayName, 'ja'));
+}
+
 export function loadAll(){
-  try { state.records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { state.records = []; }
-  try { state.weekMaps = JSON.parse(localStorage.getItem(WEEK_STORAGE_KEY) || '{}'); } catch { state.weekMaps = {}; }
+  try {
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    state.records = Array.isArray(parsed) ? parsed.map(normalizeRecord) : [];
+  } catch {
+    state.records = [];
+  }
+  try {
+    const parsed = JSON.parse(localStorage.getItem(CLIENT_STORAGE_KEY) || '[]');
+    state.clients = Array.isArray(parsed) ? parsed.map(normalizeClient).filter(c => c.displayName) : [];
+  } catch {
+    state.clients = [];
+  }
+  const syncedClients = ensureClientsForRecords(state.records, state.clients);
+  if (syncedClients.length !== state.clients.length) {
+    state.clients = syncedClients;
+    saveClients();
+  } else {
+    state.clients = syncedClients;
+  }
+  try {
+    const parsed = JSON.parse(localStorage.getItem(WEEK_STORAGE_KEY) || '{}');
+    state.weekMaps = Object.fromEntries(
+      Object.entries(parsed && typeof parsed === 'object' ? parsed : {}).map(([k, v]) => [k, normalizeWeekMatrix(v)])
+    );
+  } catch {
+    state.weekMaps = {};
+  }
 }
 export function saveRecords(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state.records)); }
+export function saveClients(){ localStorage.setItem(CLIENT_STORAGE_KEY, JSON.stringify(state.clients)); }
 export function saveWeekMaps(){ localStorage.setItem(WEEK_STORAGE_KEY, JSON.stringify(state.weekMaps)); }
 
 export function collectForm(){
@@ -150,13 +246,16 @@ export function filteredRecords(){
 }
 
 export function refreshClientSelectors(){
-  const clients = [...new Set(state.records.map(r => (r.clientName || '').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));
-  ['filterClient','historyClientSelect','weekClientSelect'].forEach(id => {
+  const registeredClients = [...new Set(state.clients.map(c => c.displayName).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ja'));
+  const recordClients = [...new Set(state.records.map(r => (r.clientName || '').trim()).filter(Boolean))];
+  const allClients = [...new Set([...registeredClients, ...recordClients])].sort((a,b)=>a.localeCompare(b,'ja'));
+  ['clientName','filterClient','historyClientSelect','weekClientSelect'].forEach(id => {
     const select = $(id);
     const cur = select.value;
     const first = id === 'filterClient' ? '<option value="">すべて</option>' : '<option value="">利用者を選択</option>';
-    select.innerHTML = first + clients.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-    if (clients.includes(cur)) select.value = cur;
+    const source = id === 'clientName' ? registeredClients : allClients;
+    select.innerHTML = first + source.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    if (source.includes(cur)) select.value = cur;
   });
 }
 
@@ -166,7 +265,7 @@ export async function copyText(text){
 }
 
 export function exportJson(){
-  const payload = { records: state.records, weekMaps: state.weekMaps };
+  const payload = { records: state.records, clients: state.clients, weekMaps: state.weekMaps };
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -182,21 +281,33 @@ export function importJson(file, onAfterImport){
     try {
       const data = JSON.parse(reader.result);
       let recs = [];
+      let clients = [];
       let weekMaps = {};
       if (Array.isArray(data)) recs = data;
       else {
         recs = Array.isArray(data.records) ? data.records : [];
+        clients = Array.isArray(data.clients) ? data.clients : [];
         weekMaps = data.weekMaps && typeof data.weekMaps === 'object' ? data.weekMaps : {};
       }
       const merged = [...state.records];
-      recs.forEach(rec => {
-        if (!rec.id) rec.id = crypto.randomUUID();
+      recs.map(normalizeRecord).forEach(rec => {
         const idx = merged.findIndex(r => r.id === rec.id);
-        if (idx >= 0) merged[idx] = rec; else merged.push(rec);
+        if (idx >= 0) merged[idx] = rec;
+        else merged.push(rec);
       });
       state.records = merged;
-      state.weekMaps = { ...state.weekMaps, ...weekMaps };
-      saveRecords(); saveWeekMaps();
+      const mergedClients = [...state.clients];
+      clients.map(normalizeClient).filter(c => c.displayName).forEach(client => {
+        const idx = mergedClients.findIndex(c => c.id === client.id || c.displayName === client.displayName);
+        if (idx >= 0) mergedClients[idx] = client;
+        else mergedClients.push(client);
+      });
+      state.clients = ensureClientsForRecords(state.records, mergedClients);
+      const normalizedWeekMaps = Object.fromEntries(
+        Object.entries(weekMaps).map(([k, v]) => [k, normalizeWeekMatrix(v)])
+      );
+      state.weekMaps = { ...state.weekMaps, ...normalizedWeekMaps };
+      saveRecords(); saveClients(); saveWeekMaps();
       if (onAfterImport) onAfterImport();
       alert('読込が完了しました。');
     } catch {
