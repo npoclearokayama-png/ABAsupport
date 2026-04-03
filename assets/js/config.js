@@ -1,5 +1,6 @@
 export const STORAGE_KEY = 'aba_case_records_v3';
 export const WEEK_STORAGE_KEY = 'aba_week_maps_v1';
+export const CLIENT_STORAGE_KEY = 'aba_clients_v1';
 
 export const ANTECEDENT_OPTIONS = [
   '課題提示直後','難しい課題','終了・切替要求','待機','拒否された','取り上げられた',
