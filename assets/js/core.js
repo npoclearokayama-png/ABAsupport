@@ -123,6 +123,18 @@ export function normalizeClient(client={}){
   };
 }
 
+export function ensureClientsForRecords(records=[], clients=[]){
+  const existingNames = new Set(clients.map(c => c.displayName).filter(Boolean));
+  const generated = [...clients];
+  records.forEach(rec => {
+    const name = String(rec.clientName || '').trim();
+    if (!name || existingNames.has(name)) return;
+    generated.push(normalizeClient({ displayName: name }));
+    existingNames.add(name);
+  });
+  return generated.sort((a,b) => a.displayName.localeCompare(b.displayName, 'ja'));
+}
+
 export function loadAll(){
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
@@ -135,6 +147,13 @@ export function loadAll(){
     state.clients = Array.isArray(parsed) ? parsed.map(normalizeClient).filter(c => c.displayName) : [];
   } catch {
     state.clients = [];
+  }
+  const syncedClients = ensureClientsForRecords(state.records, state.clients);
+  if (syncedClients.length !== state.clients.length) {
+    state.clients = syncedClients;
+    saveClients();
+  } else {
+    state.clients = syncedClients;
   }
   try {
     const parsed = JSON.parse(localStorage.getItem(WEEK_STORAGE_KEY) || '{}');
@@ -283,7 +302,7 @@ export function importJson(file, onAfterImport){
         if (idx >= 0) mergedClients[idx] = client;
         else mergedClients.push(client);
       });
-      state.clients = mergedClients.sort((a,b) => a.displayName.localeCompare(b.displayName, 'ja'));
+      state.clients = ensureClientsForRecords(state.records, mergedClients);
       const normalizedWeekMaps = Object.fromEntries(
         Object.entries(weekMaps).map(([k, v]) => [k, normalizeWeekMatrix(v)])
       );
